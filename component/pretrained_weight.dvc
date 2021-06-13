@@ -1,0 +1,5 @@
+outs:
+- md5: 76906c2a5ad2ea1081aadaa176c4bcb8.dir
+  size: 210660608
+  nfiles: 2
+  path: pretrained_weight

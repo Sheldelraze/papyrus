@@ -127,6 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-/coughvid_dataset
-/audio
-/pretrained_weight
+/component/coughvid_dataset
+/component/audio
+/component/pretrained_weight
