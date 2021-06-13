@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 /coughvid_dataset
 /audio
+/pretrained_weight
