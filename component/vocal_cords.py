@@ -6,8 +6,8 @@ from tensorflow.keras import layers
 from tensorflow.keras.applications import resnet50
 
 
-def get_vocal_cords_model(input_shape, weights=None):
-    base_model = resnet50.ResNet50(input_shape=input_shape, include_top=False, weights=weights)
+def get_vocal_cords_model(input_shape):
+    base_model = resnet50.ResNet50(input_shape=input_shape, include_top=False)
     x1 = keras.layers.GlobalAveragePooling2D()(base_model.output)
     x2 = keras.layers.GlobalMaxPooling2D()(base_model.output)
     x = keras.layers.concatenate([x1,x2])
