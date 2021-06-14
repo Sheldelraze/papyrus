@@ -19,9 +19,9 @@ class CovidClassifier(keras.Model, ABC):
         self.biomaker3 = get_sentiment_model()
         self.biomaker4 = get_respiratory_tract_model()
         self.load_weights(vocal_cords_path, sentiment_path, tract_path, )
-        self.biomaker2 = self.biomaker2.get_layer('conv5_block3_add')
-        self.biomaker3 = self.biomaker3.get_layer('conv5_block3_add')
-        self.biomaker4 = self.biomaker4.get_layer('conv5_block3_add')
+        self.biomaker2 = keras.models.Model(inputs=[self.biomaker2.input], outputs=[self.biomaker2.get_layer('conv5_block3_add')])
+        self.biomaker3 = keras.models.Model(inputs=[self.biomaker3.input], outputs=[self.biomaker3.get_layer('conv5_block3_add')])
+        self.biomaker4 = keras.models.Model(inputs=[self.biomaker4.input], outputs=[self.biomaker4.get_layer('conv5_block3_add')])
 
     def load_weights(self, vocal_cords_path, sentiment_path, tract_path, **kwargs):
         if vocal_cords_path is not None:
