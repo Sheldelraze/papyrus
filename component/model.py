@@ -1,5 +1,3 @@
-from abc import ABC
-
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -9,35 +7,31 @@ from component.sentiment import get_sentiment_model
 from component.vocal_cords import get_vocal_cords_model
 
 
-class CovidClassifier(keras.Model, ABC):
-    def __init__(self, input_shape,
+def get_covid_classifier(input_shape,
                  vocal_cords_path,
                  sentiment_path,
                  tract_path):
-        self.biomaker1 = get_muscular_degradation_model(input_shape=input_shape)
-        self.biomaker2 = get_vocal_cords_model()
-        self.biomaker3 = get_sentiment_model()
-        self.biomaker4 = get_respiratory_tract_model()
-        self.load_weights(vocal_cords_path, sentiment_path, tract_path, )
-        self.biomaker2 = keras.models.Model(inputs=[self.biomaker2.input], outputs=[self.biomaker2.get_layer('conv5_block3_add')])
-        self.biomaker3 = keras.models.Model(inputs=[self.biomaker3.input], outputs=[self.biomaker3.get_layer('conv5_block3_add')])
-        self.biomaker4 = keras.models.Model(inputs=[self.biomaker4.input], outputs=[self.biomaker4.get_layer('conv5_block3_add')])
-
-    def load_weights(self, vocal_cords_path, sentiment_path, tract_path, **kwargs):
+        biomaker1 = get_muscular_degradation_model(input_shape=input_shape)
+        biomaker2 = get_vocal_cords_model(input_shape=input_shape)
+        biomaker3 = get_sentiment_model(input_shape=input_shape)
+        biomaker4 = get_respiratory_tract_model(input_shape=input_shape)
         if vocal_cords_path is not None:
-            self.biomaker2.load_weights(vocal_cords_path)
+            biomaker2.load_weights(vocal_cords_path)
         if sentiment_path is not None:
-            self.biomaker3.load_weights(sentiment_path)
+            biomaker3.load_weights(sentiment_path)
         if tract_path is not None:
-            self.biomaker4.load_weights(tract_path)
-
-    def call(self, inputs, **kwargs):
-        x = self.biomaker1(inputs)
-        v = self.biomaker2(x)
-        s = self.biomaker3(x)
-        r = self.biomaker4(x)
-        concat = layers.concatenate([v, s, r], axis=-1)
-        x = tf.keras.layers.GlobalAveragePooling2D()(concat)
-        x = layers.Dense(1024, activation='relu')(x)
+            biomaker4.load_weights(tract_path)
+        biomaker2 = keras.models.Model(inputs=[biomaker2.input], outputs=[biomaker2.get_layer('conv5_block3_add').output])
+        biomaker3 = keras.models.Model(inputs=[biomaker3.input], outputs=[biomaker3.get_layer('conv5_block3_add').output])
+        biomaker4 = keras.models.Model(inputs=[biomaker4.input], outputs=[biomaker4.get_layer('conv5_block3_add').output])
+        v = biomaker2(biomaker1.output)
+        s = biomaker3(biomaker1.output)
+        r = biomaker4(biomaker1.output)
+        x = layers.concatenate([v, s, r], axis=1)
+        x = layers.GlobalAveragePooling2D()(x)
+        x = keras.layers.Dense(1024, activation='relu')(x)
+        x = keras.layers.BatchNormalization()(x)
+        x = keras.layers.Dropout(0.7)(x)
         x = layers.Dense(1, activation=tf.nn.sigmoid)(x)
-        return x
+        model = keras.models.Model(inputs=[biomaker1.input], outputs=[x])
+        return model

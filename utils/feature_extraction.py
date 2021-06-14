@@ -1,45 +1,41 @@
 from pyAudioAnalysis import ShortTermFeatures
 import numpy as np
+import librosa
+
+from functools import lru_cache
 
 
-def mid_feature_extraction(signal, sampling_rate, mid_window, mid_step,
-                           short_window, short_step):
-    """
-    Mid-term feature extraction
-    """
+def trim_silence(x, pad=0, db_max=50):
+    _, ints = librosa.effects.trim(x, top_db=db_max, frame_length=256, hop_length=64)
+    start = int(max(ints[0] - pad, 0))
+    end = int(min(ints[1] + pad, len(x)))
+    return x[start:end]
 
-    short_features, short_feature_names = \
-        ShortTermFeatures.feature_extraction(signal, sampling_rate,
-                                             short_window, short_step)
 
-    n_stats = 2
-    n_feats = len(short_features)
-    # mid_window_ratio = int(round(mid_window / short_step))
-    mid_window_ratio = round((mid_window -
-                              (short_window - short_step)) / short_step)
-    mt_step_ratio = int(round(mid_step / short_step))
+def process_file(path, chunk=3):
+    x, sr = librosa.load(path, sr=None)
+    if len(x) / sr < 0.3 or len(x) / sr > 30:
+        # print(len(x), sr, len(x) / sr, path)
+        return None, None
 
-    mid_features, mid_feature_names = [], []
-    for i in range(n_stats * n_feats):
-        mid_features.append([])
-        mid_feature_names.append("")
+    x = trim_silence(x, pad=0.25 * sr, db_max=50)
+    x = x[:np.floor(chunk * sr).astype(int)]
 
-    # for each of the short-term features:
-    for i in range(n_feats):
-        cur_position = 0
-        num_short_features = len(short_features[i])
-        mid_feature_names[i] = short_feature_names[i] + "_" + "mean"
-        mid_feature_names[i + n_feats] = short_feature_names[i] + "_" + "std"
+    # pads to chunk size if smaller
+    x_pad = np.zeros(int(sr * chunk))
+    x_pad[:min(len(x_pad), len(x))] = x[:min(len(x_pad), len(x))]
 
-        while cur_position < num_short_features:
-            end = cur_position + mid_window_ratio
-            if end > num_short_features:
-                end = num_short_features
-            cur_st_feats = short_features[i][cur_position:end]
+    hop_length = np.floor(0.010 * sr).astype(int)
+    win_length = np.floor(0.020 * sr).astype(int)
+    return x_pad, sr, hop_length, win_length
 
-            mid_features[i].append(np.mean(cur_st_feats))
-            mid_features[i + n_feats].append(np.std(cur_st_feats))
-            cur_position += mt_step_ratio
-    mid_features = np.array(mid_features)
-    mid_features = np.nan_to_num(mid_features)
-    return mid_features, short_features, mid_feature_names
+
+@lru_cache(maxsize=None)
+def get_MFCCS(path, final_dim=(300, 200)):
+    audio, sr, hop_length, win_length = process_file(path)
+    mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mels=200, n_mfcc=200, n_fft=2048,
+                                hop_length=hop_length)
+    mfcc = np.swapaxes(mfcc, 0, 1)
+    mfcc = mfcc[:final_dim[0], :final_dim[1]]
+    mfcc = np.expand_dims(mfcc, -1)
+    return mfcc
