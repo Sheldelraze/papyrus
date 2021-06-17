@@ -132,3 +132,4 @@ dmypy.json
 /pretrained_weight
 /merge_dataset
 /att_mh_rnn
+/att_mh_rnn_russian_long

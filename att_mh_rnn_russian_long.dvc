@@ -1,0 +1,5 @@
+outs:
+- md5: 70341b5e521c1344fccb69d4e2eb625d.dir
+  size: 1497470486
+  nfiles: 334
+  path: att_mh_rnn_russian_long
