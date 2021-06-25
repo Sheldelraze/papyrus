@@ -1,7 +1,10 @@
 from pyAudioAnalysis import ShortTermFeatures
 import numpy as np
 import librosa
+import os
 
+from scipy.stats import  kurtosis
+from python_speech_features.base import fbank
 from functools import lru_cache
 
 
@@ -31,11 +34,50 @@ def process_file(path, chunk=3):
 
 
 @lru_cache(maxsize=None)
-def get_MFCCS(path, final_dim=(300, 200)):
+def get_MFCCS(path, final_dim=(300, 200), n_mfccs=200):
     audio, sr, hop_length, win_length = process_file(path)
-    mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mels=200, n_mfcc=200, n_fft=2048,
+    mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mels=200, n_mfcc=n_mfccs, n_fft=2048,
                                 hop_length=hop_length)
+    mfcc_delta = librosa.feature.delta(mfcc, order=1)
+    mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
+
     mfcc = np.swapaxes(mfcc, 0, 1)
     mfcc = mfcc[:final_dim[0], :final_dim[1]]
     mfcc = np.expand_dims(mfcc, -1)
     return mfcc
+
+
+@lru_cache(maxsize=None)
+def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
+    audio, sr, hop_length, win_length = process_file(path)
+    cache_path_file = f'cache/{os.path.basename(path).split(".")[0]}.npy'
+    if os.path.exists(cache_path_file):
+        data = np.load(cache_path_file)
+    else:
+        data = None
+        time_skip = np.ceil(len(audio) / num_segments) #?????
+        try:
+            for segment in np.array_split(audio, num_segments):
+                mfcc = librosa.feature.mfcc(y=segment, sr=sr, n_mels=200, n_mfcc=n_mfccs, n_fft=2048,
+                                            hop_length=hop_length)
+                mfcc_delta = librosa.feature.delta(mfcc, order=1, mode='nearest')
+                mfcc_delta2 = librosa.feature.delta(mfcc, order=2, mode='nearest')
+                zcr = librosa.feature.zero_crossing_rate(segment)
+                kur = kurtosis(segment)
+                _, energy = fbank(segment, sr, nfft=2048)
+                row = np.concatenate([np.mean(mfcc, axis=1),
+                                       np.mean(mfcc_delta, axis=1),
+                                       np.mean(mfcc_delta2, axis=1),
+                                       [zcr.mean(), kur, np.log(energy.mean())]]).T
+                row = np.expand_dims(row, -1)
+                if data is None:
+                    data = row
+                else:
+                    data = np.hstack((data, row))
+        except Exception as e:
+            print(path, len(audio) / sr, sr)
+            raise e
+        data = np.expand_dims(data, -1)
+        np.save(cache_path_file, data)
+    return data
+
