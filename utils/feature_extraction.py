@@ -2,6 +2,7 @@ from pyAudioAnalysis import ShortTermFeatures
 import numpy as np
 import librosa
 import os
+import auditok
 
 from scipy.stats import  kurtosis
 from python_speech_features.base import fbank
@@ -49,15 +50,37 @@ def get_MFCCS(path, final_dim=(300, 200), n_mfccs=200):
 
 @lru_cache(maxsize=None)
 def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
-    audio, sr, hop_length, win_length = process_file(path)
     cache_path_file = f'cache/{os.path.basename(path).split(".")[0]}.npy'
     if os.path.exists(cache_path_file):
         data = np.load(cache_path_file)
     else:
+        audio, sr, hop_length, win_length = process_file(path)
+
+        # try remove silence
+        try:
+            audio_regions = auditok.split(
+                "coswara_wavs/train/p/t0IcY0l4PcU8VicMlC1xC3taL2E2_cough-shallow.wav",
+                min_dur=0.3,  # minimum duration of a valid audio event in seconds
+                max_dur=4,  # maximum duration of an event
+                max_silence=0.05,  # maximum duration of tolerated continuous silence within an event
+                energy_threshold=55  # threshold of detection
+            )
+            temp_data = None
+            for region in audio_regions:
+                if temp_data is None:
+                    temp_data = region.samples
+                else:
+                    temp_data = np.concatenate([temp_data, region.samples])
+            audio = temp_data
+        except Exception as e:
+            print(f"cant remove silence, error -> {type(e).__name__}: {str(e)}")
+            pass
+
         data = None
         time_skip = np.ceil(len(audio) / num_segments) #?????
         try:
-            for segment in np.array_split(audio, num_segments):
+            for index in range(0, len(audio), int(time_skip)):
+                segment = audio[index: index + segment_length]
                 mfcc = librosa.feature.mfcc(y=segment, sr=sr, n_mels=200, n_mfcc=n_mfccs, n_fft=2048,
                                             hop_length=hop_length)
                 mfcc_delta = librosa.feature.delta(mfcc, order=1, mode='nearest')
@@ -75,6 +98,7 @@ def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
                 else:
                     data = np.hstack((data, row))
         except Exception as e:
+            print(f"Error -> {type(e).__name__}: {str(e)}")
             print(path, len(audio) / sr, sr)
             raise e
         data = np.expand_dims(data, -1)
