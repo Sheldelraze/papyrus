@@ -4,9 +4,10 @@ import librosa
 import os
 import auditok
 
-from scipy.stats import  kurtosis
+from scipy.stats import kurtosis
 from python_speech_features.base import fbank
 from functools import lru_cache
+from imblearn.over_sampling import SMOTE
 
 
 def trim_silence(x, pad=0, db_max=50):
@@ -50,6 +51,15 @@ def get_MFCCS(path, final_dim=(300, 200), n_mfccs=200):
 
 @lru_cache(maxsize=None)
 def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
+    """
+    num_segments: S
+    segment_length: F
+    time_skip: sigma (=ceil(num_samples / S))
+    Feature:
+        + mfcc with first and second differ-ence
+        + zero  crossing  rate
+        + kurtosis
+    """
     cache_path_file = f'cache/{os.path.basename(path).split(".")[0]}.npy'
     if os.path.exists(cache_path_file):
         data = np.load(cache_path_file)
@@ -77,7 +87,7 @@ def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
             pass
 
         data = None
-        time_skip = np.ceil(len(audio) / num_segments) #?????
+        time_skip = np.ceil(len(audio) / num_segments)  # ?????
         try:
             for index in range(0, len(audio), int(time_skip)):
                 segment = audio[index: index + segment_length]
@@ -89,9 +99,9 @@ def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
                 kur = kurtosis(segment)
                 _, energy = fbank(segment, sr, nfft=2048)
                 row = np.concatenate([np.mean(mfcc, axis=1),
-                                       np.mean(mfcc_delta, axis=1),
-                                       np.mean(mfcc_delta2, axis=1),
-                                       [zcr.mean(), kur, np.log(energy.mean())]]).T
+                                      np.mean(mfcc_delta, axis=1),
+                                      np.mean(mfcc_delta2, axis=1),
+                                      [zcr.mean(), kur, np.log(energy.mean())]]).T
                 row = np.expand_dims(row, -1)
                 if data is None:
                     data = row
@@ -105,3 +115,11 @@ def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
         np.save(cache_path_file, data)
     return data
 
+
+def oversample(X, y):
+    # reshape from 3D to 2D then use SMOTE to oversample
+    X_rs = X.reshape((X.shape[0], X.shape[1] * X.shape[2]))
+    oversampler = SMOTE(random_state=69)
+    X_rs, y_rs = oversampler.fit_resample(X_rs, y)
+    X_rs = X_rs.reshape((X_rs.shape[0], X.shape[1], X.shape[2], 1))
+    return X_rs, y_rs
