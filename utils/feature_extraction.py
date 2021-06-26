@@ -91,6 +91,7 @@ def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
             traceback.print_exc()
             print(f"cant remove silence, error -> {type(e).__name__}: {str(e)}")
             print("path", path)
+            raise e
         data = None
         time_skip = np.ceil(len(audio) / num_segments)  # ?????
         try:
