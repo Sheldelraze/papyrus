@@ -88,9 +88,9 @@ def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
             if DEBUG:
                 regions.save(f"debug/{os.path.basename(path)}")
         except Exception as e:
-            traceback.print_exc()
-            print(f"cant remove silence, error -> {type(e).__name__}: {str(e)}")
-            print("path", path)
+            if DEBUG:
+                traceback.print_exc()
+            print(f"cant remove silence, path={path}, error -> {type(e).__name__}: {str(e)}. Skipping....")
             raise e
         data = None
         time_skip = np.ceil(len(audio) / num_segments)  # ?????
