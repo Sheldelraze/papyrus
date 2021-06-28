@@ -66,7 +66,12 @@ def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
         + zero crossing rate
         + kurtosis
     """
-    cache_path_file = f'cache/{os.path.basename(path).split(".")[0]}.npy'
+    if 'train' in path:
+        cache_path_file = f'cache/train_{os.path.basename(path).split(".")[0]}.npy'
+    elif 'test' in path:
+        cache_path_file = f'cache/test_{os.path.basename(path).split(".")[0]}.npy'
+    elif 'validat' in path:
+        cache_path_file = f'cache/validation_{os.path.basename(path).split(".")[0]}.npy'
     if os.path.exists(cache_path_file):
         data = np.load(cache_path_file)
     else:
@@ -114,6 +119,7 @@ def get_MFCCS_v2(path, n_mfccs=200, num_segments=100, segment_length=1024):
                 else:
                     data = np.hstack((data, row))
         except Exception as e:
+            traceback.print_exc()
             print(f"Error -> {type(e).__name__}: {str(e)}")
             print(path, len(audio) / sr, sr)
             raise e
