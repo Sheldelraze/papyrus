@@ -6,6 +6,7 @@ import auditok
 import scipy.io.wavfile
 import traceback
 
+from imblearn.under_sampling import RandomUnderSampler
 from scipy.stats import kurtosis
 from python_speech_features.base import fbank
 from functools import lru_cache
@@ -133,5 +134,13 @@ def oversample(X, y):
     X_rs = X.reshape((X.shape[0], X.shape[1] * X.shape[2]))
     oversampler = SMOTE(random_state=69)
     X_rs, y_rs = oversampler.fit_resample(X_rs, y)
+    X_rs = X_rs.reshape((X_rs.shape[0], X.shape[1], X.shape[2], 1))
+    return X_rs, y_rs
+
+def undersample(X, y):
+    # random under sample
+    X_rs = X.reshape((X.shape[0], X.shape[1] * X.shape[2]))
+    undersampler = RandomUnderSampler(random_state=69)
+    X_rs, y_rs = undersampler.fit_resample(X_rs, y)
     X_rs = X_rs.reshape((X_rs.shape[0], X.shape[1], X.shape[2], 1))
     return X_rs, y_rs
